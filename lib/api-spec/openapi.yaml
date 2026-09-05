@@ -1,0 +1,564 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: vault
+    description: Private couple vault operations.
+  - name: media
+    description: Private photo and video metadata operations.
+  - name: storage
+    description: Private object storage upload and serving endpoints.
+  - name: admin
+    description: Admin-only account management operations.
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /vault:
+    get:
+      operationId: getVault
+      tags: [vault]
+      summary: Get the current user's vault
+      responses:
+        "200":
+          description: Current vault.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Vault"
+        "404":
+          description: No vault has been created or joined.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+    post:
+      operationId: createVault
+      tags: [vault]
+      summary: Create a private vault
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VaultCreateInput"
+      responses:
+        "201":
+          description: Vault created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Vault"
+        "409":
+          description: User already belongs to a vault.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /vault/join:
+    post:
+      operationId: joinVault
+      tags: [vault]
+      summary: Join a vault with its private invite code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VaultJoinInput"
+      responses:
+        "200":
+          description: Vault joined.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Vault"
+        "400":
+          description: Invalid invite code.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "409":
+          description: User already belongs to a vault or vault is full.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /vault/summary:
+    get:
+      operationId: getVaultSummary
+      tags: [vault]
+      summary: Get vault counts and recent activity
+      responses:
+        "200":
+          description: Vault summary.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VaultSummary"
+  /account/password:
+    patch:
+      operationId: changeOwnPassword
+      tags: [admin]
+      summary: Change the signed-in user's password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordChangeInput"
+      responses:
+        "204":
+          description: Password changed.
+        "400":
+          description: Current password or new password is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /admin/users:
+    get:
+      operationId: listAdminUsers
+      tags: [admin]
+      summary: List accounts in the current vault
+      responses:
+        "200":
+          description: Accounts in the vault.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminUser"
+        "403":
+          description: Admin access required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+    post:
+      operationId: createAdminUser
+      tags: [admin]
+      summary: Create or add a vault member account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminUserCreateInput"
+      responses:
+        "201":
+          description: Account added.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUser"
+        "400":
+          description: Invalid account details.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Admin access required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "409":
+          description: Account or vault conflict.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /admin/users/{userId}:
+    delete:
+      operationId: deleteAdminUser
+      tags: [admin]
+      summary: Delete a vault member account
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Account deleted.
+        "403":
+          description: Admin access required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Account not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /admin/users/{userId}/password:
+    patch:
+      operationId: changeAdminUserPassword
+      tags: [admin]
+      summary: Change a vault member password as an admin
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminPasswordChangeInput"
+      responses:
+        "204":
+          description: Password changed.
+        "400":
+          description: Invalid password.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Admin access required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Account not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /media:
+    get:
+      operationId: listMedia
+      tags: [media]
+      summary: List media in the current user's vault
+      parameters:
+        - name: type
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [all, image, video]
+            default: all
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Media items.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MediaItem"
+    post:
+      operationId: createMedia
+      tags: [media]
+      summary: Save metadata for a completed private upload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MediaCreateInput"
+      responses:
+        "201":
+          description: Media metadata saved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaItem"
+        "400":
+          description: Invalid media metadata.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /media/{id}:
+    delete:
+      operationId: deleteMedia
+      tags: [media]
+      summary: Delete a media item and its private object
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+             type: number
+      responses:
+        "204":
+          description: Media deleted.
+        "404":
+          description: Media not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /storage/uploads/request-url:
+    post:
+      operationId: requestUploadUrl
+      tags: [storage]
+      summary: Request a presigned URL for private file upload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UploadUrlRequest"
+      responses:
+        "200":
+          description: Presigned upload URL generated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadUrlResponse"
+        "400":
+          description: Invalid upload metadata.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /storage/objects/{objectPath}:
+    get:
+      operationId: getStorageObject
+      tags: [storage]
+      summary: Serve a private object
+      parameters:
+        - name: objectPath
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Private object content.
+          content:
+            "*/*":
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: Object not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+    VaultMember:
+      type: object
+      required: [id, name, email, role, isCurrentUser]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [admin, member]
+        isCurrentUser:
+          type: boolean
+    AdminUser:
+      type: object
+      required: [id, name, email, username, role]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        username:
+          type: string
+        role:
+          type: string
+          enum: [admin, member]
+    AdminUserCreateInput:
+      type: object
+      required: [email, username, password]
+      properties:
+        email:
+          type: string
+        username:
+          type: string
+          minLength: 3
+          maxLength: 64
+        password:
+          type: string
+          minLength: 8
+    PasswordChangeInput:
+      type: object
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword:
+          type: string
+          minLength: 1
+        newPassword:
+          type: string
+          minLength: 8
+    AdminPasswordChangeInput:
+      type: object
+      required: [newPassword]
+      properties:
+        newPassword:
+          type: string
+          minLength: 8
+    Vault:
+      type: object
+      required: [id, name, inviteCode, members, createdAt]
+      properties:
+        id:
+          type: number
+        name:
+          type: string
+        inviteCode:
+          type: string
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/VaultMember"
+        createdAt:
+          type: string
+          format: date-time
+    VaultCreateInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+    VaultJoinInput:
+      type: object
+      required: [inviteCode]
+      properties:
+        inviteCode:
+          type: string
+          minLength: 6
+          maxLength: 6
+    VaultSummary:
+      type: object
+      required: [photoCount, videoCount, totalBytes, latestUpload]
+      properties:
+        photoCount:
+          type: number
+        videoCount:
+          type: number
+        totalBytes:
+          type: number
+        latestUpload:
+          anyOf:
+            - $ref: "#/components/schemas/MediaItem"
+            - type: "null"
+    MediaItem:
+      type: object
+      required: [id, name, kind, contentType, sizeBytes, objectPath, uploadedBy, createdAt, url]
+      properties:
+        id:
+          type: number
+        name:
+          type: string
+        kind:
+          type: string
+          enum: [image, video]
+        contentType:
+          type: string
+        sizeBytes:
+          type: number
+        objectPath:
+          type: string
+        uploadedBy:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        url:
+          type: string
+    MediaCreateInput:
+      type: object
+      required: [name, kind, contentType, sizeBytes, objectPath]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        kind:
+          type: string
+          enum: [image, video]
+        contentType:
+          type: string
+        sizeBytes:
+          type: number
+          minimum: 1
+        objectPath:
+          type: string
+          minLength: 1
+    UploadUrlRequest:
+      type: object
+      required: [name, size, contentType]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        size:
+          type: number
+          minimum: 1
+        contentType:
+          type: string
+          minLength: 1
+    UploadUrlResponse:
+      type: object
+      required: [uploadURL, objectPath]
+      properties:
+        uploadURL:
+          type: string
+        objectPath:
+          type: string
+        metadata:
+          $ref: "#/components/schemas/UploadUrlRequest"
+
